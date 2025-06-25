@@ -1,0 +1,99 @@
+# This file is a template, and might need editing before it works on your project.
+# This is a sample GitLab CI/CD configuration file that should run without any modifications.
+# It demonstrates a basic 3 stage CI/CD pipeline. Instead of real tests or scripts,
+# it uses echo commands to simulate the pipeline execution.
+#
+# A pipeline is composed of independent jobs that run scripts, grouped into stages.
+# Stages run in sequential order, but jobs within stages run in parallel.
+#
+# For more information, see: https://docs.gitlab.com/ee/ci/yaml/index.html#stages
+#
+# You can copy and paste this template into a new `.gitlab-ci.yml` file.
+# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
+#
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
+
+stages:          # List of stages for jobs, and their order of execution
+  - build
+  - test
+  - deploy-dev
+  - deploy-prod
+  - final
+
+variables:
+  OWNER_NAME   : $GITLAB_USER_ID
+  CICD_VERSION : 1.0
+  LOG_FILE_NAME: $CI_COMMIT_BRANCH-$CI_COMMIT_SHORT_SHA.txt
+
+image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
+
+default:
+  interruptible: false
+  artifacts:
+    untracked: false
+    when: on_success
+    access: all
+    expire_in: 30 days
+    paths:
+      - "$LOG_FILE_NAME"
+
+build-job:       # This job runs in the build stage, which runs first.
+  stage: build
+  script:
+    - echo "Compiling the code..." >> $LOG_FILE_NAME
+    - echo "Building..." >> $LOG_FILE_NAME
+    - echo "Compile complete." >> $LOG_FILE_NAME
+
+unit-test-job:   # This job runs in the test stage.
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  script:
+    - echo "Running unit tests... This will take about 60 seconds." >> $LOG_FILE_NAME
+    - sleep 60
+    - echo "Code coverage is 90%" >> $LOG_FILE_NAME
+
+lint-test-job:   # This job also runs in the test stage.
+  stage: test    # It can run at the same time as unit-test-job (in parallel).
+  needs: [unit-test-job]
+  script:
+    - echo "Linting code... This will take about 10 seconds." >> $LOG_FILE_NAME
+    - sleep 10
+    - echo "No lint issues found." >> $LOG_FILE_NAME
+
+auto-test-job:   # This job runs in the test stage.
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  needs: [unit-test-job, lint-test-job]
+  script:
+    - echo "Running auto tests... This will take about 60 seconds." >> $LOG_FILE_NAME
+    - sleep 60
+    - echo "Code coverage is 90%" >> $LOG_FILE_NAME
+
+deploy-dev-job:      # This job runs in the deploy stage.
+  stage: deploy-dev  # It only runs when *both* jobs in the test stage complete successfully.
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+  environment: dev
+  script:
+    - echo "Deploying application to dev..." >> $LOG_FILE_NAME
+    - echo "Application successfully deployed." >> $LOG_FILE_NAME
+
+deploy-prod-job:      # This job runs in the deploy stage.
+  stage: deploy-prod  # It only runs when *both* jobs in the test stage complete successfully.
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  environment: main
+  script:
+    - echo "Deploying application to prod..." >> $LOG_FILE_NAME
+    - echo "Application successfully deployed." >> $LOG_FILE_NAME
+
+final-job:
+    stage: final
+    script:
+        - echo "---Final Job Started---"
+        - echo "Finish!!!" >> $LOG_FILE_NAME
+        - echo "Owner of the Pipeline $CICD_VERSION is $OWNER_NAME" >> $LOG_FILE_NAME
+        - cat $LOG_FILE_NAME
+        - ls -l
+        - echo "---Final Job Completed---" 
